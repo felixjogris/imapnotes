@@ -4,37 +4,45 @@
 
 import Tkinter, threading, Queue, time, os, ConfigParser
 
-def run2(*args):
-    f = q.get_nowait()
-    f(None)
-    pass
-
-root = Tkinter.Tk()
-
-w = Tkinter.Label(root, text="Hello, world!")
-w.pack()
-w.bind("<<foobar>>", run2)
-
-b = Tkinter.Button(root, text="Ok")
-b.pack()
-
-l = Tkinter.Listbox(root)
-l.pack()
+def invokeLaterCallback(*args):
+    func = eventQueue.get_nowait()
+    func(None)
 
 def invokeLater(func):
-    q.put(func)
-    time.sleep(3)
-    w.event_generate("<<foobar>>")
+    eventQueue.put(func)
+    root.event_generate("<<invokeLater>>")
 
-def run():
-    b.config(text="wurst")
-    invokeLater(lambda _: b.config(text="blabla"))
-    pass
+def sendTestEvent():
+    invokeLater(lambda _: root.title("foobar"))
 
-q = Queue.Queue()
+root = Tkinter.Tk()
+root.title("imapnotes")
 
-t = threading.Thread(target=run)
-t.start()
+frame1 = Tkinter.Frame(root)
+frame1.pack(fill=Tkinter.BOTH, expand=1)
+
+frame2 = Tkinter.Frame(frame1)
+frame2.pack(side=Tkinter.LEFT)
+
+button = Tkinter.Button(frame2, text="New")
+button.pack(side=Tkinter.TOP, fill=Tkinter.X)
+
+button = Tkinter.Button(frame2, text="Delete")
+button.pack(side=Tkinter.TOP, fill=Tkinter.X)
+
+panedWindow = Tkinter.PanedWindow(frame1, orient=Tkinter.HORIZONTAL)
+panedWindow.pack(fill=Tkinter.BOTH, expand=1)
+
+listbox = Tkinter.Listbox(panedWindow)
+panedWindow.add(listbox)
+
+text = Tkinter.Text(panedWindow)
+panedWindow.add(text)
+
+eventQueue = Queue.Queue()
+root.bind("<<invokeLater>>", invokeLaterCallback)
+
+threading.Timer(2, sendTestEvent).start()
 
 root.mainloop()
 
