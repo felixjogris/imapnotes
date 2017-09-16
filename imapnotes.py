@@ -2,7 +2,7 @@
 
 # X-Uniform-Type-Identifier: com.apple.mail-note
 
-import Tkinter, threading, Queue, os, ConfigParser, imaplib
+import Tkinter, threading, Queue, os, ConfigParser, imaplib, email.parser, email.header
 
 def invokeLaterCallback(*args):
     func = eventQueue.get_nowait()
@@ -32,8 +32,13 @@ for part in notes_list[1]:
     if part == ")":
        continue
     num = int(part[0].split()[0])
-    msg = part[1]
-    notes[num] = msg
+    message = email.message_from_string(part[1])
+    subject = ""
+    for substring, charset in email.header.decode_header(message.get("subject")):
+        if not charset is None:
+            substring.decode(charset)
+        subject += substring
+    notes[num] = {"message": message, "subject": subject}
 
 root = Tkinter.Tk()
 root.title("imapnotes")
@@ -56,7 +61,7 @@ panedWindow.pack(fill=Tkinter.BOTH, expand=1)
 listbox = Tkinter.Listbox(panedWindow)
 panedWindow.add(listbox)
 for num in sorted(notes):
-    listbox.insert(0, num)
+    listbox.insert(0, notes[num]["subject"])
 
 text = Tkinter.Text(panedWindow)
 panedWindow.add(text)
