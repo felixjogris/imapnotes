@@ -12,9 +12,6 @@ def invokeLater(func):
     eventQueue.put(func)
     root.event_generate("<<invokeLater>>")
 
-def sendTestEvent():
-    invokeLater(lambda _: root.title("foobar"))
-
 root = Tkinter.Tk()
 root.title("imapnotes")
 
@@ -42,7 +39,7 @@ panedWindow.add(text)
 eventQueue = Queue.Queue()
 root.bind("<<invokeLater>>", invokeLaterCallback)
 
-threading.Timer(2, sendTestEvent).start()
+threading.Timer(2, lambda _: root.title("foobar"), (None,)).start()
 
 root.mainloop()
 
