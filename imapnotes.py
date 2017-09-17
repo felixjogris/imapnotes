@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-import Tkinter, threading, Queue, os, ConfigParser, imaplib
-import email.parser, email.header, HTMLParser, re, tkFont, time
+import Tkinter, os, ConfigParser, imaplib, email.parser, email.header
+import HTMLParser, re, tkFont, time
 
 class HTMLNoteParser(HTMLParser.HTMLParser):
     style_tag = ""
@@ -65,14 +65,6 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
         self.textField.insert(Tkinter.END, data, self.style_tag)
         self.style_tag = previous_style_tag
 
-def invokeLaterCallback(*args):
-    func = eventQueue.get_nowait()
-    func(None)
-
-def invokeLater(func):
-    eventQueue.put(func)
-    root.event_generate("<<invokeLater>>")
-
 def displayMessage(message):
     if message.is_multipart():
         for part in message.get_payload():
@@ -88,10 +80,26 @@ def displayMessage(message):
             textField.insert(Tkinter.END, "<cannot display " + contenttype + ">")
 
 def displayNote(*args):
+    global noteChanged
+
+    if noteChanged:
+        index = listBox.index(Tkinter.ACTIVE)
+        subject = textField.get(1.0, 2.0).strip()
+        body = textField.get(1.0, Tkinter.END)
+        note = notes[len(notes) - index - 1]
+        note["message"].set_payload(body)
+        note["subject"] = subject
+        note["changed"] = True
+        listBox.delete(index)
+        listBox.insert(index, subject)
+    noteChanged = False
+
     index = listBox.curselection()
+
     if len(index) > 0:
-        saveNote()
-        clearText()
+        textField.delete(1.0, Tkinter.END)
+        for tag in textField.tag_names():
+            textField.tag_delete(tag)
         index = index[0]
         message = notes[len(notes) - index - 1]["message"]
         displayMessage(message)
@@ -100,15 +108,14 @@ def displayNote(*args):
     else:
         deleteButton.config(state=Tkinter.DISABLED)
 
-def clearText():
-    textField.delete(1.0, Tkinter.END)
-    for tag in textField.tag_names():
-        textField.tag_delete(tag)
-
 def newNote():
     subject = "new note"
-    message = email.message_from_string("")
-    notes.append({"uid": -1, "message": message, "subject": subject})
+    notes.append({
+        "uid":     -1,
+        "message": email.message_from_string(""),
+        "subject": subject,
+        "changed": False,
+    })
     listBox.insert(0, subject)
     listBox.selection_clear(0, Tkinter.END)
     listBox.selection_set(0)
@@ -118,21 +125,18 @@ def newNote():
 def deleteNote():
     pass
 
-def saveNote():
-    global noteChanged
-    if noteChanged:
-        subject = textField.get(1.0, 2.0).strip()
-        body = textField.get(1.0, Tkinter.END)
-        message = email.message_from_string("")
+def saveNotes(*args):
+    for note in [x for x in notes if x["changed"]]:
+        message = note["message"]
+        subject = note["subject"]
         message.add_header("Subject", subject)
         message.add_header("Content-Type", "text/plain; charset=utf-8")
         message.add_header("Content-Transfer-Encoding", "8bit")
         message.add_header("X-Uniform-Type-Identifier", "com.apple.mail-note")
-        message.set_payload(body)
         now = imaplib.Time2Internaldate(time.time())
         ret = imap.append("Notes", "", now, message.as_string())
-        print "changed note:\nsubject=%s\nbody=%s\nret=%s\n" % (subject, body, ret)
-    noteChanged = False
+        print "changed note:\nsubject=%s\nret=%s\n" % (subject,ret)
+    root.destroy()
 
 def textModified(*args):
     global noteChanged
@@ -172,7 +176,12 @@ for part in notes_list[1]:
         if not charset is None:
             substring.decode(charset)
         subject += substring
-    notes.append({"uid": uid, "message": message, "subject": subject})
+    notes.append({
+        "uid":     uid,
+        "message": message,
+        "subject": subject,
+        "changed": False,
+    })
 
 root = Tkinter.Tk()
 root.title("imapnotes")
@@ -211,13 +220,8 @@ textField.config(yscrollcommand=vscroll.set)
 textField.bind("<<Modified>>", textModified)
 panedWindow.add(textField, width=500)
 
-eventQueue = Queue.Queue()
-root.bind("<<invokeLater>>", invokeLaterCallback)
-
-#threading.Timer(2, lambda _: root.title("foobar"), (None,)).start()
 noteChanged = False
 
+root.protocol("WM_DELETE_WINDOW", saveNotes)
 root.after(42000, imapNoop)
 root.mainloop()
-
-print "ende"
