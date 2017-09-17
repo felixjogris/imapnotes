@@ -86,25 +86,26 @@ def displayMessage(message):
             textField.insert(Tkinter.END, "<cannot display " + contenttype + ">")
 
 def displayNote(*args):
-    global textLoading
     index = listBox.curselection()
     if len(index) > 0:
-        textLoading = True
+        saveNote()
         clearText()
         index = index[0]
         message = notes[len(notes) - index - 1]["message"]
         displayMessage(message)
         deleteButton.config(state=Tkinter.NORMAL)
+        textField.edit_modified(False)
     else:
         deleteButton.config(state=Tkinter.DISABLED)
 
 def clearText():
+    global noteLoading
+    noteLoading = True
     textField.delete(1.0, Tkinter.END)
     for tag in textField.tag_names():
         textField.tag_delete(tag)
 
 def newNote():
-    clearText()
     subject = "new note"
     message = email.message_from_string("")
     message.add_header("Subject", subject)
@@ -113,24 +114,34 @@ def newNote():
     message.add_header("X-Uniform-Type-Identifier", "com.apple.mail-note")
     notes.append({"num": -1, "message": message, "subject": subject})
     listBox.insert(0, subject)
-    now = imaplib.Time2Internaldate(time.time())
-    ret = imap.append("Notes", "", now, message.as_string())
-    print ret
+    listBox.selection_clear(0, Tkinter.END)
+    listBox.selection_set(0)
+    listBox.activate(0)
 
 def deleteNote():
     pass
 
+def saveNote():
+    global noteChanged
+    if noteChanged:
+        print "changed"
+#        now = imaplib.Time2Internaldate(time.time())
+#        ret = imap.append("Notes", "", now, message.as_string())
+#        print ret
+    noteChanged = False
+
+def textModified(*args):
+    global noteLoading
+    global noteChanged
+    if textField.edit_modified():
+#        if not noteLoading:
+        noteChanged = True
+#        textField.edit_modified(False)
+    noteLoading = False
+
 def imapNoop():
     imap.noop()
 
-def textModified(*args):
-    global textLoading
-    global textChanged
-    if textField.edit_modified():
-        if not textLoading:
-            textChanged = True
-        textField.edit_modified(False)
-    textLoading = False
 
 config = ConfigParser.SafeConfigParser()
 config.read(os.path.expanduser("~/.imapnotes.ini"))
@@ -204,8 +215,8 @@ eventQueue = Queue.Queue()
 root.bind("<<invokeLater>>", invokeLaterCallback)
 
 #threading.Timer(2, lambda _: root.title("foobar"), (None,)).start()
-textLoading = True
-textChanged = False
+noteLoading = True
+noteChanged = False
 
 root.after(42000, imapNoop)
 root.mainloop()
