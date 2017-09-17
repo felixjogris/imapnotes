@@ -3,13 +3,46 @@
 # X-Uniform-Type-Identifier: com.apple.mail-note
 
 import Tkinter, threading, Queue, os, ConfigParser, imaplib
-import email.parser, email.header, HTMLParser
+import email.parser, email.header, HTMLParser, re, tkFont
 
 class HTMLNoteParser(HTMLParser.HTMLParser):
+    style_tag = ""
+    style_num = 0
+
+    def __init__(self):
+        HTMLParser.HTMLParser.__init__(self)
+        for tag in text.tag_names():
+            text.tag_delete(tag)
+
+    def getColor(self, cssvalue):
+        rgba_re = re.compile(r"rgba?\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})")
+        match = rgba_re.match(cssvalue)
+        if match is None:
+            return cssvalue
+        else:
+            return "#%02x%02x%02x" % tuple(map(int, match.group(1, 2, 3)))
+
+    def parseStyle(self, css):
+        style = {}
+
+        for setting in [x for x in css.split(";") if ":" in x]:
+            cssname, cssvalue = map(str.strip, setting.split(":", 1))
+            if cssname == "color":
+                style["foreground"] = self.getColor(cssvalue)
+            elif cssname == "background-color":
+                style["background"] = self.getColor(cssvalue)
+
+        text.tag_configure(self.style_tag, style)
+                
     def handle_starttag(self, tag, attrs):
-        for k,v in attrs:
-            print "%s: %s:%s" % (tag, k, v)
-        pass
+        self.style_tag = "tag%d" % (self.style_num,)
+        self.style_num += 1
+
+        for name, value in attrs:
+            if name == "style":
+                self.parseStyle(value)
+        if tag == "strike":
+            text.tag_configure(self.style_tag, font=tkFont.Font(overstrike=True))
 
     def handle_endtag(self, tag):
         if tag in ("br", "div", "p", "h1", "h2", "h3", "h4"):
@@ -20,7 +53,9 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
             text.insert(Tkinter.END, "\n")
 
     def handle_data(self, data):
-        text.insert(Tkinter.END, data)
+        previous_style_tag = self.style_tag
+        text.insert(Tkinter.END, data, self.style_tag)
+        self.style_tag = previous_style_tag
 
 def invokeLaterCallback(*args):
     func = eventQueue.get_nowait()
@@ -99,13 +134,19 @@ panedWindow = Tkinter.PanedWindow(frame1, orient=Tkinter.HORIZONTAL)
 panedWindow.pack(fill=Tkinter.BOTH, expand=1)
 
 listbox = Tkinter.Listbox(panedWindow)
-panedWindow.add(listbox)
+vscroll = Tkinter.Scrollbar(listbox, command=listbox.yview, orient=Tkinter.VERTICAL)
+vscroll.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+listbox.config(yscrollcommand=vscroll.set)
+panedWindow.add(listbox, width=300, height=400)
 for note in notes:
     listbox.insert(0, note["subject"])
 listbox.bind("<<ListboxSelect>>", displayNote)
 
-text = Tkinter.Text(panedWindow, undo=True)
-panedWindow.add(text)
+text = Tkinter.Text(panedWindow, undo=True, wrap=Tkinter.WORD)
+vscroll = Tkinter.Scrollbar(text, command=text.yview, orient=Tkinter.VERTICAL)
+vscroll.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+text.config(yscrollcommand=vscroll.set)
+panedWindow.add(text, width=500)
 
 eventQueue = Queue.Queue()
 root.bind("<<invokeLater>>", invokeLaterCallback)
