@@ -99,8 +99,6 @@ def displayNote(*args):
         deleteButton.config(state=Tkinter.DISABLED)
 
 def clearText():
-    global noteLoading
-    noteLoading = True
     textField.delete(1.0, Tkinter.END)
     for tag in textField.tag_names():
         textField.tag_delete(tag)
@@ -112,7 +110,7 @@ def newNote():
     message.add_header("Content-Type", "text/plain; charset=utf-8")
     message.add_header("Content-Transfer-Encoding", "8bit")
     message.add_header("X-Uniform-Type-Identifier", "com.apple.mail-note")
-    notes.append({"num": -1, "message": message, "subject": subject})
+    notes.append({"uid": -1, "message": message, "subject": subject})
     listBox.insert(0, subject)
     listBox.selection_clear(0, Tkinter.END)
     listBox.selection_set(0)
@@ -124,20 +122,16 @@ def deleteNote():
 def saveNote():
     global noteChanged
     if noteChanged:
-        print "changed"
+        print "changed:" + textField.get(1.0, Tkinter.END)
 #        now = imaplib.Time2Internaldate(time.time())
 #        ret = imap.append("Notes", "", now, message.as_string())
 #        print ret
     noteChanged = False
 
 def textModified(*args):
-    global noteLoading
     global noteChanged
     if textField.edit_modified():
-#        if not noteLoading:
         noteChanged = True
-#        textField.edit_modified(False)
-    noteLoading = False
 
 def imapNoop():
     imap.noop()
@@ -215,7 +209,6 @@ eventQueue = Queue.Queue()
 root.bind("<<invokeLater>>", invokeLaterCallback)
 
 #threading.Timer(2, lambda _: root.title("foobar"), (None,)).start()
-noteLoading = True
 noteChanged = False
 
 root.after(42000, imapNoop)
