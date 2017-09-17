@@ -45,6 +45,8 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
         elif tag == "i":
             font = tkFont.Font(weight="italic")
             self.textField.tag_configure(self.style_tag, font=font)
+        elif tag in ("div", "p", "h1", "h2", "h3", "h4"):
+            self.textField.insert(Tkinter.END, "\n")
 
         for name, value in attrs:
             if name == "style":
@@ -106,15 +108,12 @@ def clearText():
 def newNote():
     subject = "new note"
     message = email.message_from_string("")
-    message.add_header("Subject", subject)
-    message.add_header("Content-Type", "text/plain; charset=utf-8")
-    message.add_header("Content-Transfer-Encoding", "8bit")
-    message.add_header("X-Uniform-Type-Identifier", "com.apple.mail-note")
     notes.append({"uid": -1, "message": message, "subject": subject})
     listBox.insert(0, subject)
     listBox.selection_clear(0, Tkinter.END)
     listBox.selection_set(0)
     listBox.activate(0)
+    listBox.event_generate("<<ListboxSelect>>")
 
 def deleteNote():
     pass
@@ -122,10 +121,17 @@ def deleteNote():
 def saveNote():
     global noteChanged
     if noteChanged:
-        print "changed:" + textField.get(1.0, Tkinter.END)
-#        now = imaplib.Time2Internaldate(time.time())
-#        ret = imap.append("Notes", "", now, message.as_string())
-#        print ret
+        subject = textField.get(1.0, 2.0).strip()
+        body = textField.get(1.0, Tkinter.END)
+        message = email.message_from_string("")
+        message.add_header("Subject", subject)
+        message.add_header("Content-Type", "text/plain; charset=utf-8")
+        message.add_header("Content-Transfer-Encoding", "8bit")
+        message.add_header("X-Uniform-Type-Identifier", "com.apple.mail-note")
+        message.set_payload(body)
+        now = imaplib.Time2Internaldate(time.time())
+        ret = imap.append("Notes", "", now, message.as_string())
+        print "changed note:\nsubject=%s\nbody=%s\nret=%s\n" % (subject, body, ret)
     noteChanged = False
 
 def textModified(*args):
