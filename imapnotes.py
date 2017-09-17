@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 import Tkinter, os, ConfigParser, imaplib, email.parser, email.header
-import HTMLParser, re, tkFont, time
+import HTMLParser, re, tkFont, time, StringIO
+from PIL import Image, ImageTk
 
 class HTMLNoteParser(HTMLParser.HTMLParser):
     style_tag = ""
@@ -76,6 +77,9 @@ def displayMessage(message):
             textField.insert(Tkinter.END, body)
         elif contenttype.startswith("text/html"):
             HTMLNoteParser(textField).feed(body)
+        elif contenttype.startswith("image/"):
+            img = ImageTk.PhotoImage(Image.open(StringIO.StringIO(body)))
+            textField.image_create(Tkinter.END, image=img)
         else:
             textField.insert(Tkinter.END, "<cannot display " + contenttype + ">")
 
