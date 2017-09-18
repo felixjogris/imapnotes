@@ -116,7 +116,7 @@ def newNote():
     subject = "new note"
     message = email.message_from_string("")
     notes.append({
-        "uid":     -1,
+        "uid":     None,
         "message": message,
         "subject": subject,
         "changed": False,
@@ -149,6 +149,14 @@ def saveNotes(*args):
         now = imaplib.Time2Internaldate(time.time())
         ret = imap.append("Notes", "", now, message.as_string())
         print "changed note:\nsubject=%s\nret=%s\n" % (subject,ret)
+        uid = note["uid"]
+        if not uid is None:
+            ret = imap.uid("COPY", uid, "Trash")
+            print "moved note to Trash:\nuid=%s\nret=%s\n" % (uid, ret)
+            ret = imap.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
+            print "deleted note:\nuid=%s\nret=%s\n" % (uid, ret)
+    print "expunged mailbox=%s\n" % (imap.expunge(),)
+    print "closed mailbox=%s\n" % (imap.close(),)
     root.destroy()
 
 def textModified(*args):
@@ -177,11 +185,14 @@ notes_numbers = imap.uid("search", None, "ALL")[1][0].replace(" ", ",")
 notes_list = imap.uid("fetch", notes_numbers, "RFC822")
 notes = []
 
+uid_re = re.compile(r"UID\s+(\d+)")
 for part in notes_list[1]:
-    # imap fetch returns s.th. like: ('OK', [('1 (RFC822 {519}', 'From: ...'), ')'])
+    # imap fetch returns s.th. like: ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
     if part == ")":
        continue
-    uid = int(part[0].split()[0])
+    print part[0]
+    match = uid_re.search(part[0])
+    uid = None if match is None else match.group(1)
     message = email.message_from_string(part[1])
     subject = ""
     raw_subject = message.get("subject")
