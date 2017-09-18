@@ -137,6 +137,8 @@ def set_header(message, header, value):
         message[header] = value
 
 def saveNotes(*args):
+    displayNote(args)
+
     for note in [x for x in notes if x["changed"]]:
         message = note["message"]
         subject = email.header.Header(note["subject"], "utf-8")
