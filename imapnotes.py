@@ -190,7 +190,6 @@ for part in notes_list[1]:
     # imap fetch returns s.th. like: ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
     if part == ")":
        continue
-    print part[0]
     match = uid_re.search(part[0])
     uid = None if match is None else match.group(1)
     message = email.message_from_string(part[1])
