@@ -88,8 +88,8 @@ def displayNote(*args):
 
     if noteChanged:
         index = listBox.index(Tkinter.ACTIVE)
-        subject = textField.get(1.0, 2.0).strip()
-        body = textField.get(1.0, Tkinter.END)
+        subject = textField.get(1.0, 2.0).strip().encode("utf-8")
+        body = textField.get(1.0, Tkinter.END).encode("utf-8")
         note = notes[len(notes) - index - 1]
         note["message"].set_payload(body)
         note["subject"] = subject
@@ -114,9 +114,10 @@ def displayNote(*args):
 
 def newNote():
     subject = "new note"
+    message = email.message_from_string("")
     notes.append({
         "uid":     -1,
-        "message": email.message_from_string(""),
+        "message": message,
         "subject": subject,
         "changed": False,
     })
@@ -129,14 +130,20 @@ def newNote():
 def deleteNote():
     pass
 
+def set_header(message, header, value):
+    if message.has_key(header):
+        message.replace_header(header, value)
+    else:
+        message[header] = value
+
 def saveNotes(*args):
     for note in [x for x in notes if x["changed"]]:
         message = note["message"]
-        subject = note["subject"]
-        message.add_header("Subject", subject)
-        message.add_header("Content-Type", "text/plain; charset=utf-8")
-        message.add_header("Content-Transfer-Encoding", "8bit")
-        message.add_header("X-Uniform-Type-Identifier", "com.apple.mail-note")
+        subject = email.header.Header(note["subject"], "utf-8")
+        set_header(message, "Subject", subject)
+        set_header(message, "Content-Type", "text/plain; charset=utf-8")
+        set_header(message, "Content-Transfer-Encoding", "8bit")
+        set_header(message, "X-Uniform-Type-Identifier", "com.apple.mail-note")
         now = imaplib.Time2Internaldate(time.time())
         ret = imap.append("Notes", "", now, message.as_string())
         print "changed note:\nsubject=%s\nret=%s\n" % (subject,ret)
@@ -188,6 +195,8 @@ for part in notes_list[1]:
     })
 
 root = Tkinter.Tk()
+root.protocol("WM_DELETE_WINDOW", saveNotes)
+root.after(42000, imapNoop)
 root.title("imapnotes")
 
 frameButtons = Tkinter.Frame(root)
@@ -226,6 +235,4 @@ panedWindow.add(textField, width=500)
 
 noteChanged = False
 
-root.protocol("WM_DELETE_WINDOW", saveNotes)
-root.after(42000, imapNoop)
 root.mainloop()
