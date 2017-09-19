@@ -179,32 +179,32 @@ else:
 imap.login(config.get("connection", "user"), config.get("connection", "pass"))
 
 imap.select("Notes")
+notes = []
 # search returns tuple with list
 notes_numbers = imap.uid("search", None, "ALL")[1][0].replace(" ", ",")
 # imap fetch expects comma separated list
-notes_list = imap.uid("fetch", notes_numbers, "RFC822")
-notes = []
-
-uid_re = re.compile(r"UID\s+(\d+)")
-for part in notes_list[1]:
-    # imap fetch returns s.th. like: ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
-    if part == ")":
-       continue
-    match = uid_re.search(part[0])
-    uid = None if match is None else match.group(1)
-    message = email.message_from_string(part[1])
-    subject = ""
-    raw_subject = message.get("subject")
-    for substring, charset in email.header.decode_header(raw_subject):
-        if not charset is None:
-            substring.decode(charset)
-        subject += substring
-    notes.append({
-        "uid":     uid,
-        "message": message,
-        "subject": subject,
-        "changed": False,
-    })
+if len(notes_numbers) > 0:
+    notes_list = imap.uid("fetch", notes_numbers, "RFC822")
+    uid_re = re.compile(r"UID\s+(\d+)")
+    for part in notes_list[1]:
+        # imap fetch returns s.th. like: ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
+        if part == ")":
+           continue
+        match = uid_re.search(part[0])
+        uid = None if match is None else match.group(1)
+        message = email.message_from_string(part[1])
+        subject = ""
+        raw_subject = message.get("subject")
+        for substring, charset in email.header.decode_header(raw_subject):
+            if not charset is None:
+                substring.decode(charset)
+            subject += substring
+        notes.append({
+            "uid":     uid,
+            "message": message,
+            "subject": subject,
+            "changed": False,
+        })
 
 gifdata = base64.b64decode("""
 R0lGODlhQABAAKECAAAAAPHKGf///////yH5BAEKAAIALAAAAABAAEAAAAL+lH+gy+0PI0C0Jolz
