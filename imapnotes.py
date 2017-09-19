@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import Tkinter, os, ConfigParser, imaplib, email.parser, email.header
-import HTMLParser, re, tkFont, time, StringIO
+import HTMLParser, re, tkFont, time, StringIO, base64
 from PIL import Image, ImageTk
 
 class HTMLNoteParser(HTMLParser.HTMLParser):
@@ -206,18 +206,18 @@ for part in notes_list[1]:
         "changed": False,
     })
 
-data = """
-R0lGODdhQABAAKECAAAAAPHKGf///////ywAAAAAQABAAAAC/pSPAsvtD6MEqdqJs7b86A82XccE
-5omm6sqizMiV7Uy3L1zJ9b7fOKLjCVm+nyE4TJ6KRl3oCVgujMCFFPq5Uj1WExak3Sq6ynKA+UOa
-hWicet2bit9wWhtGr9vk27x+dTfi9KUR1kdGWOjFRzWYOGHYSPZXE0gySTljGYOZScTY1Ompsnkh
-OuoCmnaKukgxh/gI6So2FuUqCxEZenuWG7G72ttKqurG2lqag4yqnODXbIzHPOpcNUyc+nrY+wtM
-C9vt/RB8LD7eUD6NnQ3O3V68Lcnebs1Fn21/RO2pbwufwh+0atIExULnqJYjhOcUHmSoziA+YgL5
-Zao4MVnBNEsZo8njBVCbw44EPwoLGZHjFYju5q1EmJLTOZa+TJpD2RIkTow4a45kmOEn0AlCh0aw
-UAAAOw==
-"""
-gificon = ImageTk.PhotoImage(data=data)
+gifdata = base64.b64decode("""
+R0lGODlhQABAAKECAAAAAPHKGf///////yH5BAEKAAIALAAAAABAAEAAAAL+lH+gy+0PI0C0Jolz
+tvzqDypdtwTmiabqyqLLyJXtTLcvXMn1vt84ouMJWb6fIThMnopGXegJWIqMHin0Y6VWTVdQVitA
+KpPMn3gsLOPO6N5Uy27T1LC43Pam2u8r+sjZpfEFp2AVKDGoV8h1iJHYtMjH40cSKVlDGWN5OZNp
+scfJOAEGGuqZsxnalwcZJdoI8WgWCYsoChZGWxt7S5qqmnJKUcopDPQLLLuGnBxgvNWs8nzEnDyd
+6+q8+6Bcp7vd0P33DQ44Spgd7cI6m67ei/4ezL7s/n5NfIlfDbxvr+7PULlsAV8NFFeJ4EBzuPJJ
+KigPnqJ/0SBGtCgP4z0pet4oNoO4kKEvhSERaiK50OQnfqo0AuQ4zqM1mAlDYmhoc8PInBE6FAAA
+Ow==
+""")
 
 root = Tkinter.Tk()
+gificon = ImageTk.PhotoImage(Image.open(StringIO.StringIO(gifdata)))
 root.tk.call('wm', 'iconphoto', root._w, gificon)
 root.title("imapnotes")
 root.protocol("WM_DELETE_WINDOW", saveNotes)
