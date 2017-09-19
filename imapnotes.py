@@ -206,10 +206,22 @@ for part in notes_list[1]:
         "changed": False,
     })
 
+data = """
+R0lGODdhQABAAKECAAAAAPHKGf///////ywAAAAAQABAAAAC/pSPAsvtD6MEqdqJs7b86A82XccE
+5omm6sqizMiV7Uy3L1zJ9b7fOKLjCVm+nyE4TJ6KRl3oCVgujMCFFPq5Uj1WExak3Sq6ynKA+UOa
+hWicet2bit9wWhtGr9vk27x+dTfi9KUR1kdGWOjFRzWYOGHYSPZXE0gySTljGYOZScTY1Ompsnkh
+OuoCmnaKukgxh/gI6So2FuUqCxEZenuWG7G72ttKqurG2lqag4yqnODXbIzHPOpcNUyc+nrY+wtM
+C9vt/RB8LD7eUD6NnQ3O3V68Lcnebs1Fn21/RO2pbwufwh+0atIExULnqJYjhOcUHmSoziA+YgL5
+Zao4MVnBNEsZo8njBVCbw44EPwoLGZHjFYju5q1EmJLTOZa+TJpD2RIkTow4a45kmOEn0AlCh0aw
+UAAAOw==
+"""
+gificon = ImageTk.PhotoImage(data=data)
+
 root = Tkinter.Tk()
+root.tk.call('wm', 'iconphoto', root._w, gificon)
+root.title("imapnotes")
 root.protocol("WM_DELETE_WINDOW", saveNotes)
 root.after(42000, imapNoop)
-root.title("imapnotes")
 
 frameButtons = Tkinter.Frame(root)
 frameButtons.pack(fill=Tkinter.BOTH, expand=1)
