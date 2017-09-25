@@ -46,7 +46,7 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
         elif tag == "i":
             font = tkFont.Font(weight="italic")
             self.textField.tag_configure(self.style_tag, font=font)
-        elif tag in ("div", "p", "h1", "h2", "h3", "h4"):
+        elif tag in ("br", "div", "p", "h1", "h2", "h3", "h4"):
             self.textField.insert(Tkinter.END, "\n")
 
         for name, value in attrs:
@@ -54,7 +54,7 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
                 self.parseStyle(value)
 
     def handle_endtag(self, tag):
-        if tag in ("br", "div", "p", "h1", "h2", "h3", "h4"):
+        if tag in ("div", "p", "h1", "h2", "h3", "h4"):
             self.textField.insert(Tkinter.END, "\n")
 
     def handle_startendtag(self, tag, attrs):
