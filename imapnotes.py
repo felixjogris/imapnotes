@@ -63,7 +63,7 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
 
     def handle_data(self, data):
         previous_style_tag = self.style_tag
-        self.textField.insert(Tkinter.END, data, self.style_tag)
+        self.textField.insert(Tkinter.END, data.replace("\r", ""), self.style_tag)
         self.style_tag = previous_style_tag
 
 def displayMessage(message):
@@ -74,7 +74,7 @@ def displayMessage(message):
         contenttype = message.get_content_type().lower()
         body = message.get_payload(decode=True)
         if contenttype.startswith("text/plain"):
-            textField.insert(Tkinter.END, body)
+            textField.insert(Tkinter.END, body.replace("\r", ""))
         elif contenttype.startswith("text/html"):
             HTMLNoteParser(textField).feed(body)
         elif contenttype.startswith("image/"):
