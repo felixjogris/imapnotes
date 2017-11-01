@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-import Tkinter, os, ConfigParser, imaplib, email.parser, email.header
-import HTMLParser, re, tkFont, time, StringIO, base64
+import Tkinter, os, ConfigParser, imaplib, email.parser, email.header, tkFont
+import HTMLParser, re, time, StringIO, base64, email.utils, tkMessageBox, sys
 from PIL import Image, ImageTk
 
 class HTMLNoteParser(HTMLParser.HTMLParser):
@@ -63,7 +63,8 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
 
     def handle_data(self, data):
         previous_style_tag = self.style_tag
-        self.textField.insert(Tkinter.END, data.replace("\r", ""), self.style_tag)
+        self.textField.insert(Tkinter.END, data.replace("\r", ""),
+                              self.style_tag)
         self.style_tag = previous_style_tag
 
 def displayMessage(message):
@@ -81,7 +82,8 @@ def displayMessage(message):
             img = ImageTk.PhotoImage(Image.open(StringIO.StringIO(body)))
             textField.image_create(Tkinter.END, image=img)
         else:
-            textField.insert(Tkinter.END, "<cannot display " + contenttype + ">")
+            textField.insert(Tkinter.END, "<cannot display " + contenttype +
+                             ">")
 
 def displayNote(*args):
     global noteChanged
@@ -130,22 +132,54 @@ def newNote():
 def deleteNote():
     pass
 
-def set_header(message, header, value):
-    if message.has_key(header):
-        message.replace_header(header, value)
-    else:
+def set_header(message, header, value, replace=True):
+    if not message.has_key(header):
         message[header] = value
+    elif replace:
+        message.replace_header(header, value)
+
+def imapConnect():
+    try:
+        config = ConfigParser.SafeConfigParser()
+        config.read(os.path.expanduser("~/.imapnotes.ini"))
+
+        host = config.get("connection", "host")
+        if config.has_option("connection", "port"):
+            imap = imaplib.IMAP4_SSL(host, config.get("connection", "port"))
+        else:
+            imap = imaplib.IMAP4_SSL(host)
+
+        imap.login(config.get("connection", "user"), config.get("connection", "pass"))
+        imap.select("Notes")
+
+        return imap
+    except Exception as e:
+        tkMessageBox.showerror("Connection failed", "Cannot connect to IMAPS server:\n%s" % (str(e),))
+        sys.exit(1)
+
+def imapNoop():
+    try:
+        imap.noop()
+    except Exception as e:
+        imapConnect()
 
 def saveNotes(*args):
     displayNote(args)
+    imapNoop()
 
     for note in [x for x in notes if x["changed"]]:
         message = note["message"]
         subject = email.header.Header(note["subject"], "utf-8")
+        rfc_now = email.utils.formatdate(localtime=True)
         set_header(message, "Subject", subject)
         set_header(message, "Content-Type", "text/plain; charset=utf-8")
         set_header(message, "Content-Transfer-Encoding", "8bit")
         set_header(message, "X-Uniform-Type-Identifier", "com.apple.mail-note")
+        set_header(message, "Message-ID", email.utils.make_msgid())
+        set_header(message, "Date", email.utils.formatdate(localtime=True))
+        set_header(message, "X-Mail-Created-Date", rfc_now, False)
+        set_header(message, "X-Universally-Unique-Identifier",
+                   email.utils.make_msgid().split("@")[0][1:], False)
         now = imaplib.Time2Internaldate(time.time())
         ret = imap.append("Notes", "", now, message.as_string())
         print "changed note:\nsubject=%s\nret=%s\n" % (subject,ret)
@@ -164,21 +198,9 @@ def textModified(*args):
     if textField.edit_modified():
         noteChanged = True
 
-def imapNoop():
-    imap.noop()
 
+imap = imapConnect()
 
-config = ConfigParser.SafeConfigParser()
-config.read(os.path.expanduser("~/.imapnotes.ini"))
-
-host = config.get("connection", "host")
-if config.has_option("connection", "port"):
-    imap = imaplib.IMAP4_SSL(host, config.get("connection", "port"))
-else:
-    imap = imaplib.IMAP4_SSL(host)
-imap.login(config.get("connection", "user"), config.get("connection", "pass"))
-
-imap.select("Notes")
 notes = []
 # search returns tuple with list
 notes_numbers = imap.uid("search", None, "ALL")[1][0].replace(" ", ",")
@@ -187,7 +209,8 @@ if len(notes_numbers) > 0:
     notes_list = imap.uid("fetch", notes_numbers, "RFC822")
     uid_re = re.compile(r"UID\s+(\d+)")
     for part in notes_list[1]:
-        # imap fetch returns s.th. like: ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
+        # imap fetch returns s.th. like:
+        # ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
         if part == ")":
            continue
         match = uid_re.search(part[0])
