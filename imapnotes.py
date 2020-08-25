@@ -1,16 +1,16 @@
-#!/usr/bin/python
+#!/usr/bin/env python3.7
 
-import Tkinter, os, ConfigParser, imaplib, email.parser, email.header, tkFont
-import HTMLParser, re, time, StringIO, base64, email.utils, tkMessageBox, sys
-from PIL import Image, ImageTk
+import os, sys, re, time, io, configparser, imaplib, html.parser, base64
+import email.parser, email.header, email.utils
+import tkinter, tkinter.font, tkinter.messagebox, PIL.Image, PIL.ImageTk
 
-class HTMLNoteParser(HTMLParser.HTMLParser):
+class HTMLNoteParser(html.parser.HTMLParser):
     style_tag = ""
     style_num = 0
     textField = None
 
     def __init__(self, textField):
-        HTMLParser.HTMLParser.__init__(self)
+        html.parser.HTMLParser.__init__(self)
         self.textField = textField
 
     def getColor(self, cssvalue):
@@ -38,16 +38,16 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
         self.style_num += 1
 
         if tag == "strike":
-            font = tkFont.Font(overstrike=True)
+            font = tkinter.font.Font(overstrike=True)
             self.textField.tag_configure(self.style_tag, font=font)
         elif tag == "b":
-            font = tkFont.Font(weight="bold")
+            font = tkinter.font.Font(weight="bold")
             self.textField.tag_configure(self.style_tag, font=font)
         elif tag == "i":
-            font = tkFont.Font(weight="italic")
+            font = tkinter.font.Font(weight="italic")
             self.textField.tag_configure(self.style_tag, font=font)
         elif tag in ("br", "div", "p", "h1", "h2", "h3", "h4"):
-            self.textField.insert(Tkinter.END, "\n")
+            self.textField.insert(tkinter.END, "\n")
 
         for name, value in attrs:
             if name == "style":
@@ -55,15 +55,15 @@ class HTMLNoteParser(HTMLParser.HTMLParser):
 
     def handle_endtag(self, tag):
         if tag in ("div", "p", "h1", "h2", "h3", "h4"):
-            self.textField.insert(Tkinter.END, "\n")
+            self.textField.insert(tkinter.END, "\n")
 
     def handle_startendtag(self, tag, attrs):
         if tag in ("br", "div", "p", "h1", "h2", "h3", "h4"):
-            self.textField.insert(Tkinter.END, "\n")
+            self.textField.insert(tkinter.END, "\n")
 
     def handle_data(self, data):
         previous_style_tag = self.style_tag
-        self.textField.insert(Tkinter.END, data.replace("\r", ""),
+        self.textField.insert(tkinter.END, data.replace("\r", ""),
                               self.style_tag)
         self.style_tag = previous_style_tag
 
@@ -75,23 +75,24 @@ def displayMessage(message):
         contenttype = message.get_content_type().lower()
         body = message.get_payload(decode=True)
         if contenttype.startswith("text/plain"):
-            textField.insert(Tkinter.END, body.replace("\r", ""))
+            textField.insert(tkinter.END, body.decode().replace("\r", ""))
         elif contenttype.startswith("text/html"):
-            HTMLNoteParser(textField).feed(body)
+            HTMLNoteParser(textField).feed(body.decode())
         elif contenttype.startswith("image/"):
-            img = ImageTk.PhotoImage(Image.open(StringIO.StringIO(body)))
-            textField.image_create(Tkinter.END, image=img)
+            img = PIL.ImageTk.PhotoImage(data=body)
+            textField.image_create(tkinter.END, image=img)
+            imgCache.append(img)
         else:
-            textField.insert(Tkinter.END, "<cannot display " + contenttype +
+            textField.insert(tkinter.END, "<cannot display " + contenttype +
                              ">")
 
 def displayNote(*args):
     global noteChanged
 
     if noteChanged:
-        index = listBox.index(Tkinter.ACTIVE)
+        index = listBox.index(tkinter.ACTIVE)
         subject = textField.get(1.0, 2.0).strip().encode("utf-8")
-        body = textField.get(1.0, Tkinter.END).encode("utf-8")
+        body = textField.get(1.0, tkinter.END).encode("utf-8")
         note = notes[len(notes) - index - 1]
         note["message"].set_payload(body)
         note["subject"] = subject
@@ -103,16 +104,17 @@ def displayNote(*args):
     index = listBox.curselection()
 
     if len(index) > 0:
-        textField.delete(1.0, Tkinter.END)
+        textField.delete(1.0, tkinter.END)
         for tag in textField.tag_names():
             textField.tag_delete(tag)
         index = index[0]
         message = notes[len(notes) - index - 1]["message"]
+        imgCache = []
         displayMessage(message)
-        deleteButton.config(state=Tkinter.NORMAL)
+        deleteButton.config(state=tkinter.NORMAL)
         textField.edit_modified(False)
     else:
-        deleteButton.config(state=Tkinter.DISABLED)
+        deleteButton.config(state=tkinter.DISABLED)
 
 def newNote():
     subject = "new note"
@@ -124,23 +126,23 @@ def newNote():
         "changed": False,
     })
     listBox.insert(0, subject)
-    listBox.selection_clear(0, Tkinter.END)
+    listBox.selection_clear(0, tkinter.END)
     listBox.selection_set(0)
     listBox.activate(0)
     listBox.event_generate("<<ListboxSelect>>")
 
 def deleteNote():
-    pass
+    print("not yet implemented")
 
 def set_header(message, header, value, replace=True):
-    if not message.has_key(header):
+    if not header in message.keys():
         message[header] = value
     elif replace:
         message.replace_header(header, value)
 
 def imapConnect():
     try:
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.ConfigParser()
         config.read(os.path.expanduser("~/.imapnotes.ini"))
 
         host = config.get("connection", "host")
@@ -149,12 +151,14 @@ def imapConnect():
         else:
             imap = imaplib.IMAP4_SSL(host)
 
-        imap.login(config.get("connection", "user"), config.get("connection", "pass"))
+        imap.login(config.get("connection", "user"),
+                   config.get("connection", "pass"))
         imap.select("Notes")
 
         return imap
     except Exception as e:
-        tkMessageBox.showerror("Connection failed", "Cannot connect to IMAPS server:\n%s" % (str(e),))
+        tkinter.messagebox.showerror("Connection failed",
+            "Cannot connect to IMAPS server:\n%s" % (str(e),))
         sys.exit(1)
 
 def imapNoop():
@@ -181,16 +185,16 @@ def saveNotes(*args):
         set_header(message, "X-Universally-Unique-Identifier",
                    email.utils.make_msgid().split("@")[0][1:], False)
         now = imaplib.Time2Internaldate(time.time())
-        ret = imap.append("Notes", "", now, message.as_string())
-        print "changed note:\nsubject=%s\nret=%s\n" % (subject,ret)
+        ret = imap.append("Notes", "", now, message.as_bytes())
+        print("changed note:\nsubject=%s\nret=%s\n" % (subject,ret))
         uid = note["uid"]
         if not uid is None:
             ret = imap.uid("COPY", uid, "Trash")
-            print "moved note to Trash:\nuid=%s\nret=%s\n" % (uid, ret)
+            print("moved note to Trash:\nuid=%s\nret=%s\n" % (uid, ret))
             ret = imap.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
-            print "deleted note:\nuid=%s\nret=%s\n" % (uid, ret)
-    print "expunged mailbox=%s\n" % (imap.expunge(),)
-    print "closed mailbox=%s\n" % (imap.close(),)
+            print("deleted note:\nuid=%s\nret=%s\n" % (uid, ret))
+    print("expunged mailbox=%s\n" % (imap.expunge(),))
+    print("closed mailbox=%s\n" % (imap.close(),))
     root.destroy()
 
 def textModified(*args):
@@ -203,7 +207,7 @@ imap = imapConnect()
 
 notes = []
 # search returns tuple with list
-notes_numbers = imap.uid("search", None, "ALL")[1][0].replace(" ", ",")
+notes_numbers = imap.uid("search", None, "ALL")[1][0].decode().replace(" ", ",")
 # imap fetch expects comma separated list
 if len(notes_numbers) > 0:
     notes_list = imap.uid("fetch", notes_numbers, "RFC822")
@@ -211,16 +215,16 @@ if len(notes_numbers) > 0:
     for part in notes_list[1]:
         # imap fetch returns s.th. like:
         # ('OK', [('1 (UID 1 RFC822 {519}', 'From: ...'), ')'])
-        if part == ")":
+        if part == b")":
            continue
-        match = uid_re.search(part[0])
+        match = uid_re.search(part[0].decode())
         uid = None if match is None else match.group(1)
-        message = email.message_from_string(part[1])
+        message = email.message_from_bytes(part[1])
         subject = ""
         raw_subject = message.get("subject")
         for substring, charset in email.header.decode_header(raw_subject):
             if not charset is None:
-                substring.decode(charset)
+                substring = substring.decode(charset)
             subject += substring
         notes.append({
             "uid":     uid,
@@ -239,47 +243,48 @@ KigPnqJ/0SBGtCgP4z0pet4oNoO4kKEvhSERaiK50OQnfqo0AuQ4zqM1mAlDYmhoc8PInBE6FAAA
 Ow==
 """)
 
-root = Tkinter.Tk()
-gificon = ImageTk.PhotoImage(Image.open(StringIO.StringIO(gifdata)))
+root = tkinter.Tk()
+gificon = tkinter.PhotoImage(data=gifdata)
 root.tk.call('wm', 'iconphoto', root._w, gificon)
 root.title("imapnotes")
 root.protocol("WM_DELETE_WINDOW", saveNotes)
 root.after(42000, imapNoop)
 
-frameButtons = Tkinter.Frame(root)
-frameButtons.pack(fill=Tkinter.BOTH, expand=1)
+frameButtons = tkinter.Frame(root)
+frameButtons.pack(fill=tkinter.BOTH, expand=1)
 
-frameListAndText = Tkinter.Frame(frameButtons)
-frameListAndText.pack(side=Tkinter.LEFT)
+frameListAndText = tkinter.Frame(frameButtons)
+frameListAndText.pack(side=tkinter.LEFT)
 
-newButton = Tkinter.Button(frameListAndText, text="New", command=newNote)
-newButton.pack(side=Tkinter.TOP, fill=Tkinter.X)
+newButton = tkinter.Button(frameListAndText, text="New", command=newNote)
+newButton.pack(side=tkinter.TOP, fill=tkinter.X)
 
-deleteButton = Tkinter.Button(frameListAndText, text="Delete",
-                              command=deleteNote, state=Tkinter.DISABLED)
-deleteButton.pack(side=Tkinter.TOP, fill=Tkinter.X)
+deleteButton = tkinter.Button(frameListAndText, text="Delete",
+                              command=deleteNote, state=tkinter.DISABLED)
+deleteButton.pack(side=tkinter.TOP, fill=tkinter.X)
 
-panedWindow = Tkinter.PanedWindow(frameButtons, orient=Tkinter.HORIZONTAL)
-panedWindow.pack(fill=Tkinter.BOTH, expand=1)
+panedWindow = tkinter.PanedWindow(frameButtons, orient=tkinter.HORIZONTAL)
+panedWindow.pack(fill=tkinter.BOTH, expand=1)
 
-listBox = Tkinter.Listbox(panedWindow)
-vscroll = Tkinter.Scrollbar(listBox, command=listBox.yview,
-                            orient=Tkinter.VERTICAL)
-vscroll.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+listBox = tkinter.Listbox(panedWindow)
+vscroll = tkinter.Scrollbar(listBox, command=listBox.yview,
+                            orient=tkinter.VERTICAL)
+vscroll.pack(side=tkinter.RIGHT, fill=tkinter.Y)
 listBox.config(yscrollcommand=vscroll.set)
 panedWindow.add(listBox, width=300, height=400)
 for note in notes:
     listBox.insert(0, note["subject"])
 listBox.bind("<<ListboxSelect>>", displayNote)
 
-textField = Tkinter.Text(panedWindow, undo=True, wrap=Tkinter.WORD)
-vscroll = Tkinter.Scrollbar(textField, command=textField.yview,
-                            orient=Tkinter.VERTICAL)
-vscroll.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+textField = tkinter.Text(panedWindow, undo=True, wrap=tkinter.WORD)
+vscroll = tkinter.Scrollbar(textField, command=textField.yview,
+                            orient=tkinter.VERTICAL)
+vscroll.pack(side=tkinter.RIGHT, fill=tkinter.Y)
 textField.config(yscrollcommand=vscroll.set)
 textField.bind("<<Modified>>", textModified)
 panedWindow.add(textField, width=500)
 
 noteChanged = False
+imgCache = []
 
 root.mainloop()
