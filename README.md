@@ -20,10 +20,10 @@ Create a file called _.imapnotes.ini_ in your home directory:
 
 ```
 [connection]
-host = <i>hostname of your IMAPS server</i>
-# port = <i>optional port number if not 993</i>
-user = <i>username to log into your mailbox</i>
-pass = <i>your password</i>
+host = _hostname of your IMAPS server_
+# port = _optional port number if not 993_
+user = _username to log into your mailbox_
+pass = _your password_
 ```
 
 
