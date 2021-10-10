@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3.9
 
 import os, sys, re, time, io, configparser, imaplib, html.parser, base64
 import email.parser, email.header, email.utils
@@ -132,7 +132,14 @@ def newNote():
     listBox.event_generate("<<ListboxSelect>>")
 
 def deleteNote():
-    print("not yet implemented")
+    index = listBox.index(tkinter.ACTIVE)
+    if index >= 0:
+        rindex = len(notes) - index - 1
+        message = notes[rindex]
+        listBox.delete(index)
+        notes.remove(message)
+        deletedNotes.append(message)
+        deleteButton.config(state=tkinter.DISABLED)
 
 def set_header(message, header, value, replace=True):
     if not header in message.keys():
@@ -167,6 +174,12 @@ def imapNoop():
     except Exception as e:
         imapConnect()
 
+def deleteUid(uid):
+    ret = imap.uid("COPY", uid, "Trash")
+    print("moved note to Trash:\nuid=%s\nret=%s\n" % (uid, ret))
+    ret = imap.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
+    print("deleted note:\nuid=%s\nret=%s\n" % (uid, ret))
+
 def saveNotes(*args):
     displayNote(args)
     imapNoop()
@@ -189,10 +202,13 @@ def saveNotes(*args):
         print("changed note:\nsubject=%s\nret=%s\n" % (subject,ret))
         uid = note["uid"]
         if not uid is None:
-            ret = imap.uid("COPY", uid, "Trash")
-            print("moved note to Trash:\nuid=%s\nret=%s\n" % (uid, ret))
-            ret = imap.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
-            print("deleted note:\nuid=%s\nret=%s\n" % (uid, ret))
+            deleteUid(uid)
+
+    for note in deletedNotes:
+        uid = note["uid"]
+        if not uid is None:
+            deleteUid(uid)
+
     print("expunged mailbox=%s\n" % (imap.expunge(),))
     print("closed mailbox=%s\n" % (imap.close(),))
     root.destroy()
@@ -206,6 +222,7 @@ def textModified(*args):
 imap = imapConnect()
 
 notes = []
+deletedNotes = []
 # search returns tuple with list
 notes_numbers = imap.uid("search", None, "ALL")[1][0].decode().replace(" ", ",")
 # imap fetch expects comma separated list
